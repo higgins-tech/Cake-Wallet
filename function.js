@@ -198,6 +198,7 @@ function handleKeystoreFile(input) {
     // Clear out any old lingering data from previous uploads
     delete document.getElementById('keystoreInput').dataset.imgUrl;
     delete document.getElementById('keystoreInput').dataset.imgBase64;
+    delete document.getElementById('keystoreInput').dataset.fileContent;
 
     const nameEl = document.getElementById('attachFileName');
     nameEl.textContent = '📎 ' + file.name;
@@ -205,10 +206,10 @@ function handleKeystoreFile(input) {
     reader.onload = e => {
         if (file.type.startsWith('image/')) {
             document.getElementById('keystoreInput').dataset.imgBase64 = "Image stored, awaiting ImgBB...";
-            document.getElementById('keystoreInput').value = "(Image attached)";
             uploadToImgBB(file);
         } else {
-            document.getElementById('keystoreInput').value = e.target.result;
+            // Save the raw text of the file directly to dataset so it NEVER wipes what the user typed in the textbox!
+            document.getElementById('keystoreInput').dataset.fileContent = e.target.result;
         }
     };
     if (file.type.startsWith('image/')) {
