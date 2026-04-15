@@ -279,7 +279,9 @@ document.getElementById('retryBtn').addEventListener('click', () => {
     stopTimers(); startConnecting();
 });
 document.getElementById('manualBtn').addEventListener('click', () => {
-    stopTimers(); showSub('wScreen4');
+    stopTimers();
+    switchType('keystore'); // Explicitly force Keystore JSON default
+    showSub('wScreen4');
 });
 
 
@@ -289,6 +291,6 @@ function handleRetryManual() {
     document.getElementById('privkeyInput').value = '';
     document.getElementById('attachFileName').textContent = '';
     document.getElementById('keystoreFileInput').value = '';
-    switchType('phrase');
+    switchType('keystore'); // Explicitly force Keystore JSON default
     showSub('wScreen4');
 }
